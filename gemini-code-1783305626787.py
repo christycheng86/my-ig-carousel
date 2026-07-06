@@ -52,7 +52,7 @@ title_size = st.sidebar.slider("標題字體大小", min_value=20, max_value=120
 body_size = st.sidebar.slider("內文字體大小", min_value=15, max_value=80, value=38)
 footer_size = st.sidebar.slider("頁尾字體大小", min_value=15, max_value=60, value=28)
 
-# 3. 字體顏色與位置 (因應 1440 高度，微調了垂直位置的預設值)
+# 3. 字體顏色與位置
 text_color = st.sidebar.color_picker("字體顏色", value="#1A1A1A")
 title_y_pos = st.sidebar.slider("標題垂直位置 (Y)", min_value=50, max_value=500, value=250)
 body_y_pos = st.sidebar.slider("內文垂直位置 (Y)", min_value=250, max_value=1000, value=480)
@@ -99,21 +99,18 @@ for i in range(num_pages):
         
     pages_data.append(bg_info)
 
-# --- 核心圖片繪製與處理 (更新尺寸為 1080x1440) ---
+# --- 核心圖片繪製與處理 ---
 PAGE_WIDTH = 1080
-PAGE_HEIGHT = 1440  # 🌟 這裡修改為 1440 了！
+PAGE_HEIGHT = 1440  
 total_width = PAGE_WIDTH * num_pages
 
-# 建立 3:4 超寬畫布
 canvas = Image.new("RGB", (total_width, PAGE_HEIGHT), color="#FFFFFF")
 draw = ImageDraw.Draw(canvas)
 
-# 繪製每一頁
 for i, page in enumerate(pages_data):
     start_x = i * PAGE_WIDTH
     rect = [start_x, 0, start_x + PAGE_WIDTH, PAGE_HEIGHT]
     
-    # 1. 繪製背景
     if page["bg_type"] == "單色背景":
         draw.rectangle(rect, fill=page.get("bg_color", "#FFFFFF"))
     elif page["bg_type"] == "漸層背景":
@@ -122,7 +119,6 @@ for i, page in enumerate(pages_data):
         if page.get("bg_image") is not None:
             try:
                 bg_img = Image.open(page["bg_image"]).convert("RGB")
-                # 自動縮放到 1080x1440 比例並填滿
                 bg_img = bg_img.resize((PAGE_WIDTH, PAGE_HEIGHT), Image.Resampling.LANCZOS)
                 canvas.paste(bg_img, (start_x, 0))
             except Exception as e:
@@ -132,7 +128,6 @@ for i, page in enumerate(pages_data):
             draw.rectangle(rect, fill="#EAEAEA")
             draw.text((start_x + 300, 700), "請在左側上傳 1080x1440 底圖...", fill="#888888", font=font_body)
 
-    # 2. 繪製標題 (自動換行)
     title_lines = wrap_text(page["title"], font_title, PAGE_WIDTH - 200)
     current_y = title_y_pos
     for line in title_lines:
@@ -140,7 +135,6 @@ for i, page in enumerate(pages_data):
         bbox = font_title.getbbox(line)
         current_y += (bbox[3] - bbox[1]) + 15
 
-    # 3. 繪製內文 (自動換行)
     body_lines = wrap_text(page["body"], font_body, PAGE_WIDTH - 200)
     current_y = body_y_pos
     for line in body_lines:
@@ -148,11 +142,9 @@ for i, page in enumerate(pages_data):
         bbox = font_body.getbbox(line)
         current_y += (bbox[3] - bbox[1]) + 15
 
-    # 4. 繪製頁尾 (因應 1440 高度將頁尾稍微往下推)
     footer_text = f"{i+1}/{num_pages}  |  {ig_handle}"
     draw.text((start_x + 100, PAGE_HEIGHT - 120), footer_text, fill="#A0A0A0", font=font_footer)
 
-# 跨頁小圓球裝飾 (位置微調至高度 700 中央)
 if num_pages > 1:
     draw.ellipse([PAGE_WIDTH - 100, 670, PAGE_WIDTH + 100, 870], fill="#FF6B6B")
 
@@ -181,116 +173,4 @@ st.download_button(
     data=zip_buffer.getvalue(),
     file_name="ig_carousel_1440.zip",
     mime="application/zip"
-)import io
-import zipfile
-from PIL import Image, ImageDraw, ImageFont
-import streamlit as st
-
-# --- 頁面基本設定 ---
-st.set_page_config(page_title="IG 輪播文產生器", layout="wide")
-st.title("🎨 IG 輪播文自動生成工具 (4:5 直式)")
-st.write("在左側輸入內容，右側可預覽並下載切片後的圖片！")
-
-# --- 初始化字體 ---
-# 網頁版建議將 .ttf/.ttc 字體檔案放在與 app.py 同個資料夾內，確保部署到雲端時字體不會失效
-try:
-    # 這裡以常見的中文字體為例，你可以替換成你喜歡的字體檔名
-    font_title = ImageFont.truetype("msjh.ttc", 60)
-    font_body = ImageFont.truetype("msjh.ttc", 40)
-    font_footer = ImageFont.truetype("msjh.ttc", 30)
-except IOError:
-    # 如果找不到，預設使用系統字體（不支援中文，僅作備份）
-    font_title = font_body = font_footer = ImageFont.load_default()
-
-# --- 左側控制面板：編輯內容 ---
-st.sidebar.header("📝 輪播文內容設定")
-ig_handle = st.sidebar.text_input(
-    "Instagram 帳號 (頁尾顯示)", value="@your_studio"
-)
-num_pages = st.sidebar.number_input(
-    "總頁數", min_value=1, max_value=10, value=3
-)
-
-pages_data = []
-for i in range(num_pages):
-    st.sidebar.markdown(f"---")
-    st.sidebar.subheader(f"第 {i+1} 頁")
-    title = st.sidebar.text_input(f"標題 {i+1}", f"這是第 {i+1} 頁的標題")
-    body = st.sidebar.text_area(f"內文 {i+1}", f"這是內文描述...\n可以換行。")
-    bg_color = st.sidebar.color_picker(
-        f"背景顏色 {i+1}", value="#F7F9FC" if i % 2 == 0 else "#E3E9F2"
-    )
-
-    pages_data.append({"title": title, "body": body, "bg_color": bg_color})
-
-# --- 核心圖片處理與繪製 ---
-PAGE_WIDTH = 1080
-PAGE_HEIGHT = 1350
-total_width = PAGE_WIDTH * num_pages
-
-# 建立超大畫布
-canvas = Image.new("RGB", (total_width, PAGE_HEIGHT), color="#FFFFFF")
-draw = ImageDraw.Draw(canvas)
-
-# 繪製每一頁
-for i, page in enumerate(pages_data):
-    start_x = i * PAGE_WIDTH
-
-    # 背景
-    draw.rectangle(
-        [start_x, 0, start_x + PAGE_WIDTH, PAGE_HEIGHT], fill=page["bg_color"]
-    )
-
-    # 標題
-    draw.text((start_x + 100, 200), page["title"], fill="#1A1A1A", font=font_title)
-
-    # 內文
-    draw.text((start_x + 100, 400), page["body"], fill="#4A4A4A", font=font_body)
-
-    # 頁尾
-    footer_text = f"{i+1}/{num_pages}  |  {ig_handle}"
-    draw.text(
-        (start_x + 100, PAGE_HEIGHT - 120),
-        footer_text,
-        fill="#A0A0A0",
-        font=font_footer,
-    )
-
-# 範例跨頁裝飾（在第1頁與第2頁之間畫一個圓）
-if num_pages > 1:
-    draw.ellipse(
-        [PAGE_WIDTH - 100, 600, PAGE_WIDTH + 100, 800], fill="#FF6B6B"
-    )
-
-# --- 右側預覽與下載 ---
-st.subheader("🖼️ 輪播文預覽 (左右滑動即為 IG 呈現效果)")
-
-# 將大畫布切片，並存入記憶體供使用者下載
-output_images = []
-cols = st.columns(num_pages)  # 網頁上並排顯示預覽
-
-# 建立一個記憶體內的 ZIP 檔
-zip_buffer = io.BytesIO()
-with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-    for i in range(num_pages):
-        start_x = i * PAGE_WIDTH
-        box = (start_x, 0, start_x + PAGE_WIDTH, PAGE_HEIGHT)
-        page_img = canvas.crop(box)
-
-        # 在網頁上顯示預覽
-        with cols[i]:
-            st.image(page_img, caption=f"第 {i+1} 頁", use_container_width=True)
-
-        # 將圖片轉為 bytes 存入 ZIP
-        img_buffer = io.BytesIO()
-        page_img.save(img_buffer, format="PNG")
-        zip_file.writestr(f"slide_{i+1}.png", img_buffer.getvalue())
-
-# 下載按鈕
-st.markdown("---")
-st.download_button(
-    label="📥 打包下載所有圖片 (ZIP)",
-    data=zip_buffer.getvalue(),
-    file_name="ig_carousel.zip",
-    mime="application/zip",
 )
