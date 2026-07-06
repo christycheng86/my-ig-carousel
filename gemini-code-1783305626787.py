@@ -1,3 +1,74 @@
+import random
+import os
+from openai import OpenAI  # 新版 OpenAI API 導入方式
+
+# 1. 初始化 OpenAI Client (它會自動讀取你設定的環境變數 OPENAI_API_KEY)
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+# 2. 定義隨機攪拌矩陣 (你的爆款資料庫)
+pain_points = [
+    "報咗好多變現課程，但防禦心太重，一到要擺籌碼就縮。",
+    "表面上安分守己收工，返到屋企內耗到失眠，想動又不知落戶哪行。",
+    "以前做實體或者盲目跟風，交足真金白銀當學費，依家驚到唔敢行錯一步。",
+    "命中自帶極強直覺/心軟天賦，但在商業實踐中不斷幫人擦屁股、流失底氣。",
+    "30-40歲精緻迷茫，手頭有少少碎銀，想開拓第二曲線但極怕歸零。"
+]
+
+angles = [
+    "命運底層代碼的「藏鋒期/沉潛期」：行錯個人週期表，用力等於破財。",
+    "天賦密碼的「雙重能量撕裂」：將星落錯位，高爆發特質被用來應付辦公室政治。",
+    "能量學的「排毒與格局重塑」：前半生熬過的劫，是幫你斷開垃圾磁場的開光過程。",
+    "心理學的「損失厭惡」與玄學短板：拿着軍師的說明書去幹衝鋒陷陣的重資產硬路。"
+]
+
+slangs = ["講句難聽啲", "骨格精奇", "倒錢落海", "心大心細", "死火", "執生", "踢爆"]
+
+# 3. 每次執行時，自動隨機抽樣 (攪拌核心)
+selected_pain = random.choice(pain_points)
+selected_angle = random.choice(angles)
+selected_slangs = random.sample(slangs, 3)
+
+# 4. 組裝成最終發給 AI 的高級 Prompt（這裡把你的品牌人設與避坑詞庫一次鎖死）
+prompt = f"""
+你是一位精通 Instagram 和 Threads 演算法的自媒體百萬社群行銷專家、玄學與大眾心理學大師。
+請為我撰寫 1 篇高轉發、高儲存的爆款 Threads 貼文。
+
+【嚴格執行避坑規則】：
+- 絕不直接出現「賺錢、副業、創業、金錢、收入、投資、虧損、發財、暴富、算命、八字、生命靈數」等字眼。
+- 必須使用高級替代詞：
+  * 開拓第二曲線、打造個人賽道、啟動新局、解鎖變現通道、商業實踐、增長、拿結果。
+  * 碎銀、真金白銀、籌碼、成本、學費、沉沒代價、資源、底氣、財富週期。
+  * 天賦密碼、命運底層代碼、個人週期表、能量配置、自帶的說明書。
+
+【本次隨機攪拌維度】：
+- 核心痛點：{selected_pain}
+- 玄學/心理學反轉角度：{selected_angle}
+- 必須融入的地道廣東話詞彙：{', '.join(selected_slangs)}
+
+【文案輸出規則】：
+- 語氣：直接、專業、細膩、銳利、一針見血。以「看透命運底層邏輯的同行分享者」姿態，給予驚醒與允許。
+- 語言：地道香港廣東話（結合少量專業術語）。
+- 結構：短小精悍、語氣極度銳利、撕裂認知。150-200字內，結尾留一個能夠引發正反兩派在留言區大亂鬥或瘋狂對號入座的問句。
+"""
+
+# 5. 呼叫 AI 輸出 (使用目前最新的 gpt-4o 模型與新版 API 語法)
+try:
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You are a professional social media copywriting expert."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.8 # 調高隨機性，讓文案更有創意
+    )
+    
+    # 印出最終生成的爆款文案
+    print("🔥 幫你攪拌出來的全新爆款文案：\n")
+    print(response.choices[0].message.content)
+
+except Exception as e:
+    print(f"❌ 執行出錯，請檢查你的 API Key 是否設定正確。錯誤訊息: {e}")
+
 import io
 import zipfile
 import streamlit as st
