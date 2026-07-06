@@ -4,9 +4,9 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 
 # --- 頁面基本設定 ---
-st.set_page_config(page_title="專業級 IG 輪播文產生器 (3:4)", layout="wide")
+st.set_page_config(page_title="專業級 IG 輪播文產生器 (雙字體版)", layout="wide")
 st.title("🎨 專業級 IG 輪播文自動生成工具 (3:4 直式)")
-st.write("這個版本已將圖片尺寸調整為 **1080x1440 (3:4)**！支援字體上傳、漸層背景、自訂底圖與自動換行。")
+st.write("這個版本已升級為 **雙字體獨立控制**！您可以分別為標題、內文上傳不同的字體檔案。")
 
 # --- 輔助函式：自動文字換行 ---
 def wrap_text(text, font, max_width):
@@ -42,36 +42,48 @@ def draw_vertical_gradient(draw, rect, color1, color2):
         draw.line([(x1, y), (x2, y)], fill=(r, g, b))
 
 # --- 側邊欄：全域樣式與字體設定 ---
-st.sidebar.header("🔤 全域樣式與字體")
+st.sidebar.header("🔤 字體設定（可放兩個不同字體）")
 
-# 1. 字體上傳
-uploaded_font = st.sidebar.file_uploader("上傳中文字體 (.ttf 或 .otf)", type=["ttf", "otf"])
+# 1. 雙字體上傳框
+uploaded_title_font = st.sidebar.file_uploader("1. 上傳【標題】專用字體", type=["ttf", "otf", "ttc"], key="title_font_uploader")
+uploaded_body_font = st.sidebar.file_uploader("2. 上傳【內文/頁尾】專用字體", type=["ttf", "otf", "ttc"], key="body_font_uploader")
 
-# 2. 字體大小滑桿
-title_size = st.sidebar.slider("標題字體大小", min_value=20, max_value=120, value=65)
-body_size = st.sidebar.slider("內文字體大小", min_value=15, max_value=80, value=38)
-footer_size = st.sidebar.slider("頁尾字體大小", min_value=15, max_value=60, value=28)
+# 2. 字體大小滑桿 (調高最大值到 200，讓你想放多大就多大)
+title_size = st.sidebar.slider("標題字體大小", min_value=20, max_value=200, value=75)
+body_size = st.sidebar.slider("內文字體大小", min_value=15, max_value=120, value=42)
+footer_size = st.sidebar.slider("頁尾字體大小", min_value=15, max_value=80, value=28)
 
 # 3. 字體顏色與位置
 text_color = st.sidebar.color_picker("字體顏色", value="#1A1A1A")
-title_y_pos = st.sidebar.slider("標題垂直位置 (Y)", min_value=50, max_value=500, value=250)
-body_y_pos = st.sidebar.slider("內文垂直位置 (Y)", min_value=250, max_value=1000, value=480)
+title_y_pos = st.sidebar.slider("標題垂直位置 (Y)", min_value=50, max_value=600, value=250)
+body_y_pos = st.sidebar.slider("內文垂直位置 (Y)", min_value=250, max_value=1100, value=480)
 
-# 4. 載入字體邏輯
-if uploaded_font is not None:
-    font_bytes = io.BytesIO(uploaded_font.read())
+# 4. 載入標題字體
+if uploaded_title_font is not None:
     try:
-        font_title = ImageFont.truetype(font_bytes, title_size)
-        font_bytes.seek(0)
-        font_body = ImageFont.truetype(font_bytes, body_size)
-        font_bytes.seek(0)
-        font_footer = ImageFont.truetype(font_bytes, footer_size)
+        font_title = ImageFont.truetype(io.BytesIO(uploaded_title_font.read()), title_size)
     except Exception as e:
-        st.sidebar.error(f"字體載入失敗: {e}")
-        font_title = font_body = font_footer = ImageFont.load_default()
+        st.sidebar.error(f"標題字體載入失敗: {e}")
+        font_title = ImageFont.load_default()
 else:
-    st.sidebar.warning("⚠️ 目前使用系統預設字體（中文會變亂碼）。建議點擊上方「Browse files」上傳任何中文字體檔（如微軟正黑體、思源黑體 .ttf）！")
-    font_title = font_body = font_footer = ImageFont.load_default()
+    font_title = ImageFont.load_default()
+
+# 5. 載入內文與頁尾字體
+if uploaded_body_font is not None:
+    try:
+        font_body = ImageFont.truetype(io.BytesIO(uploaded_body_font.read()), body_size)
+        # 頁尾共用內文字體但大小不同
+        uploaded_body_font.seek(0)
+        font_footer = ImageFont.truetype(io.BytesIO(uploaded_body_font.read()), footer_size)
+    except Exception as e:
+        st.sidebar.error(f"內文字體載入失敗: {e}")
+        font_body = font_footer = ImageFont.load_default()
+else:
+    font_body = font_footer = ImageFont.load_default()
+
+# 提示訊息
+if uploaded_title_font is None or uploaded_body_font is None:
+    st.sidebar.warning("💡 提示：建議上方兩個框框都丟入中文字體檔（.ttf 或 .otf），字體放大與中文顯示才會正常喔！")
 
 # --- 側邊欄：輪播內容與背景設定 ---
 st.sidebar.markdown("---")
@@ -128,6 +140,7 @@ for i, page in enumerate(pages_data):
             draw.rectangle(rect, fill="#EAEAEA")
             draw.text((start_x + 300, 700), "請在左側上傳 1080x1440 底圖...", fill="#888888", font=font_body)
 
+    # 繪製標題
     title_lines = wrap_text(page["title"], font_title, PAGE_WIDTH - 200)
     current_y = title_y_pos
     for line in title_lines:
@@ -135,6 +148,7 @@ for i, page in enumerate(pages_data):
         bbox = font_title.getbbox(line)
         current_y += (bbox[3] - bbox[1]) + 15
 
+    # 繪製內文
     body_lines = wrap_text(page["body"], font_body, PAGE_WIDTH - 200)
     current_y = body_y_pos
     for line in body_lines:
@@ -142,6 +156,7 @@ for i, page in enumerate(pages_data):
         bbox = font_body.getbbox(line)
         current_y += (bbox[3] - bbox[1]) + 15
 
+    # 繪製頁尾
     footer_text = f"{i+1}/{num_pages}  |  {ig_handle}"
     draw.text((start_x + 100, PAGE_HEIGHT - 120), footer_text, fill="#A0A0A0", font=font_footer)
 
