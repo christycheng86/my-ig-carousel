@@ -4,9 +4,9 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 
 # --- 頁面基本設定 ---
-st.set_page_config(page_title="專業級 IG 輪播文產生器 (雙字體版)", layout="wide")
+st.set_page_config(page_title="專業級 IG 輪播文產生器 (顏色進階版)", layout="wide")
 st.title("🎨 專業級 IG 輪播文自動生成工具 (3:4 直式)")
-st.write("這個版本已升級為 **雙字體獨立控制**！您可以分別為標題、內文上傳不同的字體檔案。")
+st.write("這個版本已升級 **文字顏色獨立控制**！您可以為每一頁設定不同的文字顏色。")
 
 # --- 輔助函式：自動文字換行 ---
 def wrap_text(text, font, max_width):
@@ -42,19 +42,19 @@ def draw_vertical_gradient(draw, rect, color1, color2):
         draw.line([(x1, y), (x2, y)], fill=(r, g, b))
 
 # --- 側邊欄：全域樣式與字體設定 ---
-st.sidebar.header("🔤 字體設定（可放兩個不同字體）")
+st.sidebar.header("🔤 字體設定")
 
 # 1. 雙字體上傳框
 uploaded_title_font = st.sidebar.file_uploader("1. 上傳【標題】專用字體", type=["ttf", "otf", "ttc"], key="title_font_uploader")
 uploaded_body_font = st.sidebar.file_uploader("2. 上傳【內文/頁尾】專用字體", type=["ttf", "otf", "ttc"], key="body_font_uploader")
 
-# 2. 字體大小滑桿 (調高最大值到 200，讓你想放多大就多大)
-title_size = st.sidebar.slider("標題字體大小", min_value=20, max_value=200, value=75)
-body_size = st.sidebar.slider("內文字體大小", min_value=15, max_value=120, value=42)
-footer_size = st.sidebar.slider("頁尾字體大小", min_value=15, max_value=80, value=28)
+# 2. 字體大小滑桿
+title_size = st.sidebar.slider("預設標題大小", min_value=20, max_value=200, value=75)
+body_size = st.sidebar.slider("預設內文大小", min_value=15, max_value=120, value=42)
+footer_size = st.sidebar.slider("預設頁尾大小", min_value=15, max_value=80, value=28)
 
-# 3. 字體顏色與位置
-text_color = st.sidebar.color_picker("字體顏色", value="#1A1A1A")
+# 3. 預設顏色與位置
+default_text_color = st.sidebar.color_picker("全域預設文字顏色", value="#1A1A1A")
 title_y_pos = st.sidebar.slider("標題垂直位置 (Y)", min_value=50, max_value=600, value=250)
 body_y_pos = st.sidebar.slider("內文垂直位置 (Y)", min_value=250, max_value=1100, value=480)
 
@@ -72,7 +72,6 @@ else:
 if uploaded_body_font is not None:
     try:
         font_body = ImageFont.truetype(io.BytesIO(uploaded_body_font.read()), body_size)
-        # 頁尾共用內文字體但大小不同
         uploaded_body_font.seek(0)
         font_footer = ImageFont.truetype(io.BytesIO(uploaded_body_font.read()), footer_size)
     except Exception as e:
@@ -80,10 +79,6 @@ if uploaded_body_font is not None:
         font_body = font_footer = ImageFont.load_default()
 else:
     font_body = font_footer = ImageFont.load_default()
-
-# 提示訊息
-if uploaded_title_font is None or uploaded_body_font is None:
-    st.sidebar.warning("💡 提示：建議上方兩個框框都丟入中文字體檔（.ttf 或 .otf），字體放大與中文顯示才會正常喔！")
 
 # --- 側邊欄：輪播內容與背景設定 ---
 st.sidebar.markdown("---")
@@ -98,8 +93,11 @@ for i in range(num_pages):
     title = st.sidebar.text_input(f"標題 {i+1}", f"第一天" if i == 0 else f"這是第 {i+1} 頁的標題")
     body = st.sidebar.text_area(f"內文 {i+1}", f"好日子" if i == 0 else f"輸入文字，這個版本會自動幫你換行。")
     
+    # 🌟 新增：每一頁都可以選自己專屬的文字顏色！預設會帶入上面的全域顏色
+    p_text_color = st.sidebar.color_picker(f"第 {i+1} 頁文字顏色", value=default_text_color, key=f"t_color_{i}")
+    
     bg_type = st.sidebar.selectbox(f"第 {i+1} 頁背景類型", ["單色背景", "漸層背景", "上傳底圖"], key=f"bg_type_{i}")
-    bg_info = {"title": title, "body": body, "bg_type": bg_type}
+    bg_info = {"title": title, "body": body, "bg_type": bg_type, "text_color": p_text_color}
     
     if bg_type == "單色背景":
         bg_info["bg_color"] = st.sidebar.color_picker(f"背景顏色 {i+1}", value="#F7F9FC", key=f"color_{i}")
@@ -122,6 +120,7 @@ draw = ImageDraw.Draw(canvas)
 for i, page in enumerate(pages_data):
     start_x = i * PAGE_WIDTH
     rect = [start_x, 0, start_x + PAGE_WIDTH, PAGE_HEIGHT]
+    current_page_color = page["text_color"] # 取得當前頁面的指定文字顏色
     
     if page["bg_type"] == "單色背景":
         draw.rectangle(rect, fill=page.get("bg_color", "#FFFFFF"))
@@ -140,19 +139,19 @@ for i, page in enumerate(pages_data):
             draw.rectangle(rect, fill="#EAEAEA")
             draw.text((start_x + 300, 700), "請在左側上傳 1080x1440 底圖...", fill="#888888", font=font_body)
 
-    # 繪製標題
+    # 繪製標題（套用該頁顏色）
     title_lines = wrap_text(page["title"], font_title, PAGE_WIDTH - 200)
     current_y = title_y_pos
     for line in title_lines:
-        draw.text((start_x + 100, current_y), line, fill=text_color, font=font_title)
+        draw.text((start_x + 100, current_y), line, fill=current_page_color, font=font_title)
         bbox = font_title.getbbox(line)
         current_y += (bbox[3] - bbox[1]) + 15
 
-    # 繪製內文
+    # 繪製內文（套用該頁顏色）
     body_lines = wrap_text(page["body"], font_body, PAGE_WIDTH - 200)
     current_y = body_y_pos
     for line in body_lines:
-        draw.text((start_x + 100, current_y), line, fill=text_color, font=font_body)
+        draw.text((start_x + 100, current_y), line, fill=current_page_color, font=font_body)
         bbox = font_body.getbbox(line)
         current_y += (bbox[3] - bbox[1]) + 15
 
@@ -164,7 +163,7 @@ if num_pages > 1:
     draw.ellipse([PAGE_WIDTH - 100, 670, PAGE_WIDTH + 100, 870], fill="#FF6B6B")
 
 # --- 網頁前端預覽與下載處理 ---
-st.subheader("🖼️ 輪播文即時預覽 (左右滑動即為 IG 呈現效果)")
+st.subheader("🖼️ 輪播文即時預覽")
 
 cols = st.columns(num_pages)
 zip_buffer = io.BytesIO()
