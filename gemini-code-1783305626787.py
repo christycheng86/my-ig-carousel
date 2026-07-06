@@ -4,9 +4,88 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 
 # --- 頁面基本設定 ---
-st.set_page_config(page_title="專業級 IG 輪播文產生器 (標內文雙色版)", layout="wide")
+st.set_page_config(page_title="專業級 IG 輪播文產生器 + AI 爆款內容箱", layout="wide")
 st.title("🎨 專業級 IG 輪播文自動生成工具 (3:4 直式)")
-st.write("這個版本已升級 **【標題】與【內文】顏色全獨立控制**！您可以為每一頁的標題與內文選取不同顏色。")
+st.write("✨ **目前版本：雙字體獨立控制 + AI 爆款文案產生器（方案 B 免費版）**")
+
+# --- 🌟 【新功能】方案 B：AI 爆款文案提示詞工具箱 ---
+st.markdown("---")
+with st.expander("🚀 🔥 點開此處：AI 爆款內容產生器 (IG / Threads 萬用提示詞)", expanded=True):
+    st.subheader("💡 步驟：在下方輸入主題 ➔ 選擇爆款公式 ➔ 複製指令丟給免費 AI ➔ 貼回下方做圖！")
+    
+    # 用戶輸入主題與領域
+    ai_topic = st.text_input("1. 請輸入你想寫的【主題/關鍵字】", placeholder="例如：時間管理、低卡減肥美食、職場溝通技巧...")
+    ai_target = st.text_input("2. 請輸入你的【目標受眾/痛點】", placeholder="例如：經常加班的上班族、想吃甜食又怕胖的人...")
+    
+    # 爆款公式選擇
+    prompt_style = st.selectbox(
+        "3. 選擇爆款文案公式框架",
+        [
+            "【反常識爆款法】(打破常規，Threads與IG點閱率極高)",
+            "【痛點共鳴與具體解法】(吸粉與儲存量最高的萬用公式)",
+            "【黃金3步驟教學法】(最適合做成IG輪播圖的實用乾貨)"
+        ]
+    )
+    
+    # 根據選擇動態生成 Prompt
+    base_prompt = ""
+    if prompt_style == "【反常識爆塊法】(打破常規，Threads與IG點閱率極高)":
+        base_prompt = f"""你是一位精通 Instagram 和 Threads 的自媒體百萬社群專家。
+請幫我針對主題「{ai_topic}」，針對「{ai_target}」這群受眾，撰寫一組「反常識、打破傳統思維」的爆款內容。
+
+請嚴格依照以下格式輸出：
+
+【1. IG 輪播圖專用文案 (請直接給我每頁的文字內容)】
+第 1 頁 (封面)：[請給出一個極度吸睛、顛覆認知的標題]
+第 2 頁 (痛點)：[指出大家目前的盲點，為什麼傳統做法沒用]
+第 3 頁 (反轉)：[給出一個反直覺、讓人驚訝的核心觀點]
+第 4 頁 (結論/金句)：[用一句話總結這個觀點，並加上呼籲留言互動的行動指標]
+
+【2. Threads 專用短貼文 (短小精悍、容易引發轉發)】
+[請寫出一段 150 字內、帶有強烈個人觀點、扎心且容易引發共鳴或爭論的 Threads 短文，結尾引導大家討論]
+
+【3. IG 貼文下方長文案】
+[包含吸引人的開頭、詳細補充說明、5個相關Hashtags]"""
+
+    elif prompt_style == "【痛點共鳴與具體解法】(吸粉與儲存量最高的萬用公式)":
+        base_prompt = f"""你是一位精通 Instagram 和 Threads 的自媒體百萬社群專家。
+請幫我針對主題「{ai_topic}」，針對「{ai_target}」這群受眾，撰寫一組「痛點共鳴與具體解法」的爆款內容。
+
+請嚴格依照以下格式輸出：
+
+【1. IG 輪播圖專用文案 (請直接給我每頁的文字內容)】
+第 1 頁 (封面)：[扎心的痛點問句，例如：你是不是也常常...]
+第 2 頁 (共鳴)：[描述受眾的真實慘狀，讓他們覺得被理解]
+第 3 頁 (解法)：[給出 2-3 個馬上能用的具體行動步驟]
+第 4 頁 (呼籲)：[提醒他們儲存這篇貼文，並在留言區分享想法]
+
+【2. Threads 專用短貼文 (高互動率)】
+[寫出一段語氣像朋友聊天、一針見血指出痛點並給出核心建議的 Threads 貼文，結尾留一個問句引發留言]
+
+【3. IG 貼文下方長文案】
+[包含開頭共鳴、詳細步驟拆解、5個相關Hashtags]"""
+
+    else:
+        base_prompt = f"""你是一位精通 Instagram 和 Threads 的自媒體百萬社群專家。
+請幫我針對主題「{ai_topic}」，針對「{ai_target}」這群受眾，撰寫一組「黃金3步驟教學法」的實用乾貨內容。
+
+請嚴格依照以下格式輸出：
+
+【1. IG 輪播圖專用文案 (請直接給我每頁的文字內容)】
+第 1 頁 (封面)：[乾貨標題，例如：新手必學！3步驟輕鬆學會...]
+第 2 頁 (步驟 1 & 2)：[簡短說明前兩個核心步驟]
+第 3 頁 (步驟 3)：[說明最關鍵的第三個步驟]
+第 4 頁 (頁尾呼籲)：[引導收藏、追蹤，以及轉發到限時動態]
+
+【2. Threads 專用短貼文】
+[列點式的乾貨分享，語氣爽快、含金量高，讓人看完想立刻收藏的 Threads 短文]
+
+【3. IG 貼文下方長文案】
+[詳細的步驟補充說明、5個相關Hashtags]"""
+
+    st.text_area("📋 點選下方文字方塊 ➔ 複製（Ctrl+A 然後 Ctrl+C）這段終極 Prompt 去餵給 AI：", value=base_prompt, height=300)
+st.markdown("---")
+
 
 # --- 輔助函式：自動文字換行 ---
 def wrap_text(text, font, max_width):
@@ -43,24 +122,19 @@ def draw_vertical_gradient(draw, rect, color1, color2):
 
 # --- 側邊欄：全域樣式與字體設定 ---
 st.sidebar.header("🔤 字體與預設顏色設定")
-
-# 1. 雙字體上傳框
 uploaded_title_font = st.sidebar.file_uploader("1. 上傳【標題】專用字體", type=["ttf", "otf", "ttc"], key="title_font_uploader")
 uploaded_body_font = st.sidebar.file_uploader("2. 上傳【內文/頁尾】專用字體", type=["ttf", "otf", "ttc"], key="body_font_uploader")
 
-# 2. 字體大小滑桿
 title_size = st.sidebar.slider("預設標題大小", min_value=20, max_value=200, value=75)
 body_size = st.sidebar.slider("預設內文大小", min_value=15, max_value=120, value=42)
 footer_size = st.sidebar.slider("預設頁尾大小", min_value=15, max_value=80, value=28)
 
-# 3. 全域預設顏色
 default_title_color = st.sidebar.color_picker("全域預設【標題】顏色", value="#1A1A1A")
 default_body_color = st.sidebar.color_picker("全域預設【內文】顏色", value="#333333")
 
 title_y_pos = st.sidebar.slider("標題垂直位置 (Y)", min_value=50, max_value=600, value=250)
 body_y_pos = st.sidebar.slider("內文垂直位置 (Y)", min_value=250, max_value=1100, value=480)
 
-# 4. 載入字體邏輯
 if uploaded_title_font is not None:
     try: font_title = ImageFont.truetype(io.BytesIO(uploaded_title_font.read()), title_size)
     except: font_title = ImageFont.load_default()
@@ -84,12 +158,10 @@ pages_data = []
 for i in range(num_pages):
     st.sidebar.markdown(f"---")
     st.sidebar.subheader(f"第 {i+1} 頁設定")
-    title = st.sidebar.text_input(f"標題 {i+1}", f"第一天" if i == 0 else f"這是第 {i+1} 頁的標題")
-    
-    # 🌟 核心改動：每一頁都可以獨立選標題顏色與內文顏色
+    title = st.sidebar.text_input(f"標題 {i+1}", f"這是第 {i+1} 頁的標題")
     p_title_color = st.sidebar.color_picker(f"第 {i+1} 頁【標題】顏色", value=default_title_color, key=f"t_color_{i}")
     
-    body = st.sidebar.text_area(f"內文 {i+1}", f"好日子" if i == 0 else f"輸入文字，這個版本會自動幫你換行。")
+    body = st.sidebar.text_area(f"內文 {i+1}", f"在這裡貼上 AI 幫你寫的第 {i+1} 頁內文文案。")
     p_body_color = st.sidebar.color_picker(f"第 {i+1} 頁【內文】顏色", value=default_body_color, key=f"b_color_{i}")
     
     bg_type = st.sidebar.selectbox(f"第 {i+1} 頁背景類型", ["單色背景", "漸層背景", "上傳底圖"], key=f"bg_type_{i}")
@@ -138,7 +210,7 @@ for i, page in enumerate(pages_data):
             draw.rectangle(rect, fill="#EAEAEA")
             draw.text((start_x + 300, 700), "請在左側上傳 1080x1440 底圖...", fill="#888888", font=font_body)
 
-    # 繪製標題（套用該頁專屬標題顏色）
+    # 繪製標題
     title_lines = wrap_text(page["title"], font_title, PAGE_WIDTH - 200)
     current_y = title_y_pos
     for line in title_lines:
@@ -146,7 +218,7 @@ for i, page in enumerate(pages_data):
         bbox = font_title.getbbox(line)
         current_y += (bbox[3] - bbox[1]) + 15
 
-    # 繪製內文（套用該頁專屬內文顏色）
+    # 繪製內文
     body_lines = wrap_text(page["body"], font_body, PAGE_WIDTH - 200)
     current_y = body_y_pos
     for line in body_lines:
