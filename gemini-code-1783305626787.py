@@ -256,8 +256,7 @@ for i, page in enumerate(pages_data):
     footer_text = f"{i+1}/{num_pages}  |  {ig_handle}"
     draw.text((start_x + 100, PAGE_HEIGHT - 120), footer_text, fill="#A0A0A0", font=font_footer)
 
-if num_pages > 1:
-    draw.ellipse([PAGE_WIDTH - 100, 670, PAGE_WIDTH + 100, 870], fill="#FF6B6B")
+# 💡 備註：此處已將原先繪製跨頁紅色半圓形的代碼移除 (draw.ellipse 區塊)
 
 # --- 網頁前端預覽與下載處理 ---
 st.subheader("🖼️ 輪播文即時預覽")
