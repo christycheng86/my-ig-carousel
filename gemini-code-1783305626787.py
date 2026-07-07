@@ -176,4 +176,112 @@ else: font_body = font_footer = ImageFont.load_default()
 
 # --- 側邊欄：輪播內容與背景設定 ---
 st.sidebar.markdown("---")
-st.sidebar
+st.sidebar.header("📝 輪播內容設定")
+ig_handle = st.sidebar.text_input("Instagram 帳號 (頁尾顯示)", value="@your_studio")
+num_pages = st.sidebar.number_input("總頁數", min_value=1, max_value=10, value=4)
+
+pages_data = []
+for i in range(num_pages):
+    st.sidebar.markdown(f"---")
+    st.sidebar.subheader(f"第 {i+1} 頁設定")
+    title = st.sidebar.text_input(f"標題 {i+1}", f"這是第 {i+1} 頁的標題")
+    p_title_color = st.sidebar.color_picker(f"第 {i+1} 頁【標題】顏色", value=default_title_color, key=f"t_color_{i}")
+    
+    body = st.sidebar.text_area(f"內文 {i+1}", f"在這裡貼上 AI 幫你寫的第 {i+1} 頁內文文案。")
+    p_body_color = st.sidebar.color_picker(f"第 {i+1} 頁【內文】顏色", value=default_body_color, key=f"b_color_{i}")
+    
+    bg_type = st.sidebar.selectbox(f"第 {i+1} 頁背景類型", ["單色背景", "漸層背景", "上傳底圖"], key=f"bg_type_{i}")
+    
+    bg_info = {
+        "title": title, "body": body, "bg_type": bg_type, 
+        "title_color": p_title_color, "body_color": p_body_color
+    }
+    
+    if bg_type == "單色背景":
+        bg_info["bg_color"] = st.sidebar.color_picker(f"背景顏色 {i+1}", value="#F7F9FC", key=f"color_{i}")
+    elif bg_type == "漸層背景":
+        bg_info["grad_color1"] = st.sidebar.color_picker(f"漸層起點色 {i+1}", value="#4A90E2", key=f"g1_{i}")
+        bg_info["grad_color2"] = st.sidebar.color_picker(f"漸層終點色 {i+1}", value="#50E3C2", key=f"g2_{i}")
+    elif bg_type == "上傳底圖":
+        bg_info["bg_image"] = st.sidebar.file_uploader(f"上傳底圖 {i+1} (建議 1080x1440)", type=["png", "jpg", "jpeg"], key=f"img_{i}")
+        
+    pages_data.append(bg_info)
+
+# --- 核心圖片繪製與處理 ---
+PAGE_WIDTH = 1080
+PAGE_HEIGHT = 1440  
+total_width = PAGE_WIDTH * num_pages
+
+canvas = Image.new("RGB", (total_width, PAGE_HEIGHT), color="#FFFFFF")
+draw = ImageDraw.Draw(canvas)
+
+for i, page in enumerate(pages_data):
+    start_x = i * PAGE_WIDTH
+    rect = [start_x, 0, start_x + PAGE_WIDTH, PAGE_HEIGHT]
+    
+    if page["bg_type"] == "單色背景":
+        draw.rectangle(rect, fill=page.get("bg_color", "#FFFFFF"))
+    elif page["bg_type"] == "漸層背景":
+        draw_vertical_gradient(draw, rect, page.get("grad_color1", "#FFFFFF"), page.get("grad_color2", "#CCCCCC"))
+    elif page["bg_type"] == "上傳底圖":
+        if page.get("bg_image") is not None:
+            try:
+                bg_img = Image.open(page["bg_image"]).convert("RGB")
+                bg_img = bg_img.resize((PAGE_WIDTH, PAGE_HEIGHT), Image.Resampling.LANCZOS)
+                canvas.paste(bg_img, (start_x, 0))
+            except Exception as e:
+                st.error(f"第 {i+1} 頁背景圖載入出錯: {e}")
+                draw.rectangle(rect, fill="#F0F0F0")
+        else:
+            draw.rectangle(rect, fill="#EAEAEA")
+            draw.text((start_x + 300, 700), "請在左側上傳 1080x1440 底圖...", fill="#888888", font=font_body)
+
+    # 繪製標題
+    title_lines = wrap_text(page["title"], font_title, PAGE_WIDTH - 200)
+    current_y = title_y_pos
+    for line in title_lines:
+        draw.text((start_x + 100, current_y), line, fill=page["title_color"], font=font_title)
+        bbox = font_title.getbbox(line)
+        current_y += (bbox[3] - bbox[1]) + 15
+
+    # 繪製內文
+    body_lines = wrap_text(page["body"], font_body, PAGE_WIDTH - 200)
+    current_y = body_y_pos
+    for line in body_lines:
+        draw.text((start_x + 100, current_y), line, fill=page["body_color"], font=font_body)
+        bbox = font_body.getbbox(line)
+        current_y += (bbox[3] - bbox[1]) + 15
+
+    # 繪製頁尾
+    footer_text = f"{i+1}/{num_pages}  |  {ig_handle}"
+    draw.text((start_x + 100, PAGE_HEIGHT - 120), footer_text, fill="#A0A0A0", font=font_footer)
+
+if num_pages > 1:
+    draw.ellipse([PAGE_WIDTH - 100, 670, PAGE_WIDTH + 100, 870], fill="#FF6B6B")
+
+# --- 網頁前端預覽與下載處理 ---
+st.subheader("🖼️ 輪播文即時預覽")
+
+cols = st.columns(num_pages)
+zip_buffer = io.BytesIO()
+
+with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+    for i in range(num_pages):
+        start_x = i * PAGE_WIDTH
+        box = (start_x, 0, start_x + PAGE_WIDTH, PAGE_HEIGHT)
+        page_img = canvas.crop(box)
+        
+        with cols[i]:
+            st.image(page_img, caption=f"第 {i+1} 頁預覽 (1080x1440)", use_container_width=True)
+            
+        img_buffer = io.BytesIO()
+        page_img.save(img_buffer, format="PNG")
+        zip_file.writestr(f"slide_{i+1}.png", img_buffer.getvalue())
+
+st.markdown("---")
+st.download_button(
+    label="📥 打包下載所有圖片 (ZIP)",
+    data=zip_buffer.getvalue(),
+    file_name="ig_carousel_1440.zip",
+    mime="application/zip"
+)
